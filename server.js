@@ -1,7 +1,3 @@
-/* ==========================================================================
-   FAITHCONNECTION - MYSQL BACKEND SERVER (NODE.JS + EXPRESS + MYSQL2)
-   ========================================================================== */
-
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -12,12 +8,12 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// --- MySQL Connection Pool ---
-const db = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: 'FAITHjejus@9839', 
-    database: 'faithconnection_db',
+// --- MySQL Connection Pool (Render Friendly) ---
+const db = mysql.createPool(process.env.DATABASE_URL || {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'FAITHjejus@9839', 
+    database: process.env.DB_NAME || 'faithconnection_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -26,9 +22,9 @@ const db = mysql.createPool({
 // Test Connection
 db.getConnection((err, connection) => {
     if (err) {
-        console.error('❌ MySQL Connection Failed:', err.message);
+        console.error('❌ Database Connection Failed:', err.message);
     } else {
-        console.log('✅ Connected to MySQL Database: faithconnection_db');
+        console.log('✅ Connected to Database Successfully!');
         connection.release();
     }
 });
@@ -36,6 +32,11 @@ db.getConnection((err, connection) => {
 // ==========================================================================
 // API ROUTES
 // ==========================================================================
+
+// HOME ROUTE (Testing Ke Liye)
+app.get('/', (req, res) => {
+    res.send('🚀 FaithConnection Backend Server Live Hai!');
+});
 
 // 1. GET ALL POSTS
 app.get('/api/posts', (req, res) => {
@@ -51,7 +52,7 @@ app.get('/api/posts', (req, res) => {
     });
 });
 
-// 2. CREATE NEW POST (Prayer or Testimony)
+// 2. CREATE NEW POST
 app.post('/api/posts', (req, res) => {
     const { id, user_id, type, category, text, image } = req.body;
     const sql = `INSERT INTO posts (id, user_id, type, category, text, image) VALUES (?, ?, ?, ?, ?, ?)`;
@@ -82,7 +83,7 @@ app.delete('/api/posts/:id', (req, res) => {
     });
 });
 
-// 5. GET ALL USERS / BELIEVERS
+// 5. GET ALL USERS
 app.get('/api/users', (req, res) => {
     db.query('SELECT id, username, name, email, role, church, avatar, bio FROM users', (err, results) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -90,7 +91,7 @@ app.get('/api/users', (req, res) => {
     });
 });
 
-// 6. GET ALL MINISTRIES / GROUPS
+// 6. GET ALL MINISTRIES
 app.get('/api/ministries', (req, res) => {
     const sql = `
         SELECT m.*, u.name as leader_name,
@@ -122,5 +123,5 @@ app.get('/api/ministries/:id/messages', (req, res) => {
 
 // Start Server
 app.listen(PORT, () => {
-    console.log(`🚀 FaithConnection Backend running at http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
