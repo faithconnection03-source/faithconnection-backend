@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaithConnection | Social Media & Fellowship Network</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600;1,800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ================= AUTHENTICATION MODAL / SCREEN ================= -->
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <i class="fa-solid fa-hands-praying"></i>
+                </div>
+                <h2>FaithConnection</h2>
+                <p class="auth-tagline">Connect, pray, and fellowship with believers worldwide</p>
+            </div>
+
+            <!-- Direct Google / Gmail Sign-in -->
+            <button type="button" class="btn-google-auth" onclick="handleGoogleSignIn()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+                <span>Sign in with Google</span>
+            </button>
+
+            <div class="auth-divider">
+                <span>OR SIGN IN WITH EMAIL</span>
+            </div>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Sign In</button>
+                <button type="button" class="auth-tab" id="tab-register-btn" onclick="switchAuthTab('register')">Create Account</button>
+            </div>
+
+            <div id="auth-alert" class="auth-alert" style="display: none;"></div>
+
+            <!-- Sign In Form -->
+            <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+                <div class="form-input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="login-identifier" placeholder="Username, Email or Mobile" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Password (demo: 12345)" required>
+                </div>
+                <button type="submit" class="btn-primary btn-block">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In to Fellowship
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form" style="display: none;" onsubmit="handleRegister(event)">
+                <div class="form-input-group">
+                    <i class="fa-solid fa-id-card"></i>
+                    <input type="text" id="reg-name" placeholder="Full Name" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-at"></i>
+                    <input type="text" id="reg-username" placeholder="Username (no spaces)" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-envelope"></i>
+                    <input type="email" id="reg-email" placeholder="Email Address" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-phone"></i>
+                    <input type="tel" id="reg-phone" placeholder="Mobile Number" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-cross"></i>
+                    <select id="reg-role" required>
+                        <option value="" disabled selected>Select Your Church Role / Ministry</option>
+                        <option value="Worship Leader / Singer">Worship Leader / Singer</option>
+                        <option value="Youth Leader / Member">Youth Leader / Member</option>
+                        <option value="Pastor / Church Leader">Pastor / Church Leader</option>
+                        <option value="Prayer Warrior / Intercessor">Prayer Warrior / Intercessor</option>
+                        <option value="Sunday School Teacher">Sunday School Teacher</option>
+                        <option value="Evangelist / Outreach">Evangelist / Outreach</option>
+                        <option value="Church Member">Church Member</option>
+                    </select>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-church"></i>
+                    <input type="text" id="reg-church" placeholder="Church / Fellowship Name" required>
+                </div>
+                <div class="form-input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="reg-password" placeholder="Password (min 4 characters)" minlength="4" required>
+                </div>
+                <button type="submit" class="btn-primary btn-block">
+                    <i class="fa-solid fa-user-plus"></i> Complete Registration
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP LAYOUT ================= -->
+    <div id="app-wrapper" class="app-layout">
+
+        <!-- TOP BAR / HEADER -->
+        <header class="top-header">
+            <div class="header-left">
+                <a href="javascript:void(0)" onclick="navigateTo('feed')" class="brand-logo">
+                    <i class="fa-solid fa-hands-praying"></i>
+                    <span>FaithConnection</span>
+                </a>
+            </div>
+
+            <div class="header-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="global-search-input" placeholder="Search prayers, testimonies, believers, groups..." oninput="handleGlobalSearch(this.value)">
+                <div id="search-results-dropdown" class="search-dropdown" style="display: none;"></div>
+            </div>
+
+            <div class="header-right">
+                <button class="icon-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+                <button class="icon-btn" onclick="navigateTo('chat')" title="Messages">
+                    <i class="fa-solid fa-comments"></i>
+                    <span class="notification-badge" id="chat-badge">1</span>
+                </button>
+                <div class="header-user-avatar" onclick="navigateTo('profile', loggedInUserId)" title="View Profile">
+                    <img id="header-avatar-img" src="" alt="Profile">
+                </div>
+            </div>
+        </header>
+
+        <div class="main-body-container">
+            <!-- LEFT SIDEBAR NAVIGATION (Desktop & Tablet) -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <button class="nav-item active" id="nav-feed" onclick="navigateTo('feed')">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Feed (All Posts)</span>
+                    </button>
+                    <button class="nav-item" id="nav-testimonies" onclick="navigateTo('testimonies')">
+                        <i class="fa-solid fa-star"></i>
+                        <span>Praise & Testimonies</span>
+                    </button>
+                    <button class="nav-item" id="nav-verse" onclick="navigateTo('verse')">
+                        <i class="fa-solid fa-book-bible"></i>
+                        <span>Daily Bread</span>
+                    </button>
+                    <button class="nav-item" id="nav-believers" onclick="navigateTo('believers')">
+                        <i class="fa-solid fa-users-viewfinder"></i>
+                        <span>Active Believers</span>
+                    </button>
+                    <button class="nav-item" id="nav-ministries" onclick="navigateTo('ministries')">
+                        <i class="fa-solid fa-church"></i>
+                        <span>Ministries & Groups</span>
+                    </button>
+                    <button class="nav-item" id="nav-chat" onclick="navigateTo('chat')">
+                        <i class="fa-solid fa-comment-dots"></i>
+                        <span>Direct Chat</span>
+                    </button>
+                    <button class="nav-item" id="nav-profile" onclick="navigateTo('profile', loggedInUserId)">
+                        <i class="fa-solid fa-user"></i>
+                        <span>My Profile</span>
+                    </button>
+                    <button class="nav-item" id="nav-settings" onclick="navigateTo('settings')">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="sidebar-user-card" onclick="navigateTo('profile', loggedInUserId)">
+                        <img id="sidebar-user-avatar" src="" alt="Avatar" class="avatar-sm">
+                        <div class="sidebar-user-info">
+                            <h4 id="sidebar-user-name">User</h4>
+                            <p id="sidebar-user-role">Role</p>
+                        </div>
+                    </div>
+                    <button class="btn-logout" onclick="handleLogout()" title="Logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT VIEWPORT -->
+            <main class="content-viewport">
+
+                <!-- 1. FEED & COMMUNITY VIEW (ALL POSTS, PRAYERS & TESTIMONIES) -->
+                <section id="view-feed" class="app-view active">
+                    <!-- STORIES / STATUS BAR -->
+                    <div class="stories-scroll" id="stories-container"></div>
+
+                    <!-- CREATE POST WIDGET -->
+                    <div class="create-post-card">
+                        <div class="create-post-top">
+                            <img id="create-post-avatar" src="" class="avatar-md" alt="">
+                            <textarea id="post-input-text" placeholder="Share a prayer request, testimony, or word of encouragement with the fellowship..." rows="3"></textarea>
+                        </div>
+
+                        <!-- Image Preview Box -->
+                        <div id="post-image-preview-container" class="image-preview-box" style="display: none;">
+                            <img id="post-image-preview" src="" alt="Preview">
+                            <button type="button" class="btn-remove-image" onclick="clearPostImage()">&times;</button>
+                        </div>
+
+                        <div class="create-post-bottom">
+                            <div class="post-options">
+                                <label class="btn-option" title="Attach Photo">
+                                    <i class="fa-solid fa-image" style="color: var(--accent-cyan);"></i> Photo
+                                    <input type="file" id="post-file-input" accept="image/*" style="display: none;" onchange="handlePostImageSelect(event)">
+                                </label>
+
+                                <!-- POST TYPE SELECTOR (Prayer Request vs Testimony) -->
+                                <select id="post-input-type" class="select-chip highlight-chip">
+                                    <option value="prayer">🙏 Prayer Request</option>
+                                    <option value="testimony">⭐ Testimony (Praise Report)</option>
+                                </select>
+                                
+                                <select id="post-input-category" class="select-chip">
+                                    <option value="Healing & Health">💊 Healing & Health</option>
+                                    <option value="Family & Peace">🕊️ Family & Peace</option>
+                                    <option value="Guidance & Wisdom">🧭 Guidance & Wisdom</option>
+                                    <option value="Financial Strength">🌱 Financial Strength</option>
+                                    <option value="Youth & Education">🎓 Youth & Education</option>
+                                    <option value="Answered Prayer">⭐ Answered Prayer</option>
+                                </select>
+                            </div>
+
+                            <button type="button" id="btn-submit-post" class="btn-primary" onclick="handleCreatePost()">
+                                <i class="fa-solid fa-paper-plane"></i> Post
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- FEED FILTER TABS (All / Prayers / Testimonies) -->
+                    <div class="feed-filter-bar">
+                        <button class="feed-filter-tab active" id="ff-all" onclick="filterFeedPosts('all')">
+                            <i class="fa-solid fa-globe"></i> All Community Posts
+                        </button>
+                        <button class="feed-filter-tab" id="ff-prayer" onclick="filterFeedPosts('prayer')">
+                            <i class="fa-solid fa-hands-praying"></i> Prayer Requests
+                        </button>
+                        <button class="feed-filter-tab" id="ff-testimony" onclick="filterFeedPosts('testimony')">
+                            <i class="fa-solid fa-star"></i> Praise Testimonies
+                        </button>
+                    </div>
+
+                    <!-- FEED POSTS CONTAINER -->
+                    <div class="feed-posts" id="feed-posts-container"></div>
+                </section>
+
+                <!-- 2. PRAISE & TESTIMONIES VIEW -->
+                <section id="view-testimonies" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <h2>Praise & Testimonies</h2>
+                            <p>Celebrating the miracles and answered prayers in our community</p>
+                        </div>
+                        <button class="btn-primary" onclick="openCreateTestimonyQuick()"><i class="fa-solid fa-plus"></i> Share Testimony</button>
+                    </div>
+                    <div class="feed-posts" id="testimonies-feed-container"></div>
+                </section>
+
+                <!-- 3. DAILY BIBLE VERSE VIEW -->
+                <section id="view-verse" class="app-view">
+                    <div class="verse-hero-card">
+                        <div class="verse-glow-circle"></div>
+                        <span class="verse-badge"><i class="fa-solid fa-fire"></i> Daily Bread & Inspiration</span>
+                        <blockquote class="verse-text" id="daily-verse-quote">"For I know the plans I have for you,” declares the LORD, “plans to prosper you and not to harm you, plans to give you hope and a future."</blockquote>
+                        <cite class="verse-citation" id="daily-verse-source">Jeremiah 29:11 (NIV)</cite>
+                        
+                        <div class="verse-actions">
+                            <button class="btn-primary" onclick="cycleNextVerse()"><i class="fa-solid fa-arrows-rotate"></i> Next Verse</button>
+                            <button class="btn-secondary" onclick="shareVerseText()"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                            <button class="btn-secondary" onclick="copyVerseText()"><i class="fa-solid fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+
+                    <h3 class="section-heading"><i class="fa-solid fa-bookmark"></i> Curated Scripture Collections</h3>
+                    <div class="verse-grid" id="scripture-collection-grid"></div>
+                </section>
+
+                <!-- 4. ACTIVE BELIEVERS VIEW -->
+                <section id="view-believers" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <h2>Active Believers</h2>
+                            <p>Connect and fellowship with brothers and sisters in Christ</p>
+                        </div>
+                        <div class="filter-controls">
+                            <input type="text" placeholder="Filter by name, role or church..." id="believers-filter" oninput="renderBelieversList(this.value)">
+                        </div>
+                    </div>
+                    <div class="believers-grid" id="believers-list-container"></div>
+                </section>
+
+                <!-- 5. MINISTRIES & GROUPS VIEW -->
+                <section id="view-ministries" class="app-view">
+                    <div class="view-header">
+                        <div>
+                            <h2>Ministries & Groups</h2>
+                            <p>Join fellowship groups with WhatsApp-style group discussions & prayer channels</p>
+                        </div>
+                        <button class="btn-primary" onclick="openModal('create-ministry-modal')"><i class="fa-solid fa-plus"></i> Create Group</button>
+                    </div>
+                    <div class="ministries-grid" id="ministries-list-container"></div>
+                </section>
+
+                <!-- 5B. WHATSAPP STYLE GROUP CHAT VIEW -->
+                <section id="view-group-chat" class="app-view">
+                    <div class="whatsapp-group-chat-layout">
+                        <!-- Group Chat Top Header -->
+                        <div class="group-chat-header">
+                            <div class="group-header-left">
+                                <button class="btn-icon-back" onclick="navigateTo('ministries')" title="Back to Groups">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <div class="group-avatar-header" onclick="openCurrentGroupInfoModal()">
+                                    <i class="fa-solid fa-users-line"></i>
+                                </div>
+                                <div class="group-header-title-box" onclick="openCurrentGroupInfoModal()">
+                                    <h3 id="group-chat-title">Youth Praise Network</h3>
+                                    <p id="group-chat-members-preview">Sister Sarah, Samuel, Timothy, you...</p>
+                                </div>
+                            </div>
+                            <div class="group-header-actions">
+                                <button class="btn-group-action" onclick="sendGroupPrayerPrompt()" title="Send Prayer Request">
+                                    <i class="fa-solid fa-hands-praying"></i> <span>Prayer</span>
+                                </button>
+                                <button class="btn-group-action" onclick="openCurrentGroupInfoModal()" title="Group Info & Members">
+                                    <i class="fa-solid fa-circle-info"></i> <span>Info & Members</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Group Chat Messages Body (WhatsApp Wallpaper Style) -->
+                        <div class="group-chat-body" id="group-messages-container"></div>
+
+                        <!-- WhatsApp Group Chat Input Bar -->
+                        <form class="group-chat-input-bar" onsubmit="handleSendGroupChat(event)">
+                            <label class="group-chat-media-btn" title="Send Photo to Group">
+                                <i class="fa-solid fa-camera"></i>
+                                <input type="file" id="group-chat-file-input" accept="image/*" style="display: none;" onchange="handleSendGroupPhoto(event)">
+                            </label>
+                            <input type="text" id="group-chat-input-text" placeholder="Type a message or prayer request for the group..." autocomplete="off" required>
+                            <button type="submit" class="btn-group-send">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- 6. DIRECT CHAT VIEW (1-on-1) -->
+                <section id="view-chat" class="app-view">
+                    <div class="chat-layout">
+                        <!-- Chat Contacts List -->
+                        <div class="chat-sidebar">
+                            <div class="chat-search">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" placeholder="Search conversations..." oninput="filterChatList(this.value)">
+                            </div>
+                            <div class="chat-contacts-list" id="chat-contacts-container"></div>
+                        </div>
+
+                        <!-- Chat Messages Window -->
+                        <div class="chat-window">
+                            <div class="chat-window-header">
+                                <div class="chat-active-user" id="chat-active-header" onclick="viewChatUserProfile()">
+                                    <img id="chat-header-avatar" src="" class="avatar-sm" alt="">
+                                    <div>
+                                        <h4 id="chat-header-name">Sister Sarah</h4>
+                                        <span class="online-status-badge"><i class="fa-solid fa-circle"></i> Active Online</span>
+                                    </div>
+                                </div>
+                                <div class="chat-header-actions">
+                                    <button class="icon-btn" onclick="sendPrayerAmenDirect()" title="Send Quick Prayer"><i class="fa-solid fa-hands-praying"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="chat-messages-area" id="chat-messages-body"></div>
+
+                            <form class="chat-input-bar" onsubmit="handleSendChat(event)">
+                                <label class="chat-media-btn" title="Send Photo">
+                                    <i class="fa-solid fa-image"></i>
+                                    <input type="file" id="chat-file-input" accept="image/*" style="display: none;" onchange="handleSendChatPhoto(event)">
+                                </label>
+                                <input type="text" id="chat-input-text" placeholder="Type an encouraging message or prayer..." autocomplete="off" required>
+                                <button type="submit" class="btn-chat-send">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. USER PROFILE VIEW -->
+                <section id="view-profile" class="app-view">
+                    <div class="profile-hero-card">
+                        <div class="profile-cover"></div>
+                        <div class="profile-header-content">
+                            <div class="profile-avatar-wrapper">
+                                <img id="profile-avatar" src="" class="profile-avatar-img" alt="Profile">
+                                <span class="profile-role-pill" id="profile-role-pill">Youth Leader</span>
+                            </div>
+                            <div class="profile-details">
+                                <div class="profile-name-row">
+                                    <h2 id="profile-name">User Name</h2>
+                                    <span id="profile-username" class="profile-handle">@username</span>
+                                    <div id="profile-actions-area" class="profile-actions-buttons"></div>
+                                </div>
+                                <p class="profile-church"><i class="fa-solid fa-church"></i> <span id="profile-church-name">Grace Fellowship Church</span></p>
+                                <p class="profile-bio" id="profile-bio-text">Bio description...</p>
+                                
+                                <div class="profile-stats-bar">
+                                    <div class="stat-box" onclick="showProfileTab('posts')">
+                                        <span class="stat-number" id="stat-posts-count">0</span>
+                                        <span class="stat-label">Posts</span>
+                                    </div>
+                                    <div class="stat-box" onclick="showProfileTab('friends')">
+                                        <span class="stat-number" id="stat-friends-count">0</span>
+                                        <span class="stat-label">Friends</span>
+                                    </div>
+                                    <div class="stat-box" onclick="showProfileTab('ministries')">
+                                        <span class="stat-number" id="stat-ministries-count">0</span>
+                                        <span class="stat-label">Ministries</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Profile Navigation Sub-tabs -->
+                        <div class="profile-nav-tabs">
+                            <button class="profile-tab-btn active" id="ptab-posts" onclick="showProfileTab('posts')"><i class="fa-solid fa-signs-post"></i> Posts</button>
+                            <button class="profile-tab-btn" id="ptab-friends" onclick="showProfileTab('friends')"><i class="fa-solid fa-users"></i> Friends</button>
+                            <button class="profile-tab-btn" id="ptab-saved" onclick="showProfileTab('saved')"><i class="fa-solid fa-bookmark"></i> Saved</button>
+                        </div>
+                    </div>
+
+                    <!-- Profile Tab Contents -->
+                    <div id="profile-tab-content-posts" class="profile-tab-content active">
+                        <div class="feed-posts" id="profile-posts-container"></div>
+                    </div>
+
+                    <div id="profile-tab-content-friends" class="profile-tab-content">
+                        <div class="believers-grid" id="profile-friends-container"></div>
+                    </div>
+
+                    <div id="profile-tab-content-saved" class="profile-tab-content">
+                        <div class="feed-posts" id="profile-saved-container"></div>
+                    </div>
+                </section>
+
+                <!-- 8. SETTINGS VIEW -->
+                <section id="view-settings" class="app-view">
+                    <div class="settings-card">
+                        <h2>Account & Preferences</h2>
+                        
+                        <div class="settings-list">
+                            <div class="settings-item">
+                                <div>
+                                    <h4>Edit Profile Info</h4>
+                                    <p>Update your photo, name, bio, church and ministry role</p>
+                                </div>
+                                <button class="btn-secondary" onclick="openEditProfileModal()"><i class="fa-solid fa-pen"></i> Edit</button>
+                            </div>
+
+                            <div class="settings-item">
+                                <div>
+                                    <h4>Appearance & Theme</h4>
+                                    <p>Switch between modern dark space theme and light mode</p>
+                                </div>
+                                <button class="btn-secondary" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> Switch Theme</button>
+                            </div>
+
+                            <div class="settings-item">
+                                <div>
+                                    <h4>Community Guidelines & Terms</h4>
+                                    <p>Read fellowship rules and Christ-like conduct terms</p>
+                                </div>
+                                <button class="btn-secondary" onclick="openModal('terms-modal')"><i class="fa-solid fa-file-shield"></i> Read</button>
+                            </div>
+
+                            <div class="settings-item danger-zone">
+                                <div>
+                                    <h4>Reset App Data</h4>
+                                    <p>Reset all mock posts, users, and chats to default initial state</p>
+                                </div>
+                                <button class="btn-danger" onclick="resetAppData()"><i class="fa-solid fa-trash-can"></i> Reset App</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+
+        <!-- MOBILE BOTTOM NAVIGATION (Phones & Small screens) -->
+        <nav class="mobile-bottom-nav">
+            <button class="mob-nav-btn active" id="mob-feed" onclick="navigateTo('feed')">
+                <i class="fa-solid fa-house"></i>
+                <span>Feed</span>
+            </button>
+            <button class="mob-nav-btn" id="mob-testimonies" onclick="navigateTo('testimonies')">
+                <i class="fa-solid fa-star"></i>
+                <span>Testimonies</span>
+            </button>
+            <button class="mob-nav-btn create-btn" onclick="scrollToCreatePost()">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <button class="mob-nav-btn" id="mob-ministries" onclick="navigateTo('ministries')">
+                <i class="fa-solid fa-church"></i>
+                <span>Groups</span>
+            </button>
+            <button class="mob-nav-btn" id="mob-profile" onclick="navigateTo('profile', loggedInUserId)">
+                <i class="fa-solid fa-user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. EDIT PROFILE MODAL -->
+    <div class="modal" id="edit-profile-modal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('edit-profile-modal')">&times;</button>
+            <h3 class="modal-title"><i class="fa-solid fa-user-pen"></i> Edit Profile</h3>
+            <form onsubmit="handleSaveProfile(event)">
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="avatar-edit-row">
+                        <img id="edit-preview-avatar" src="" class="avatar-lg" alt="">
+                        <input type="file" id="edit-avatar-file" accept="image/*" onchange="handleAvatarFileSelect(event)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Church Role / Ministry</label>
+                    <select id="edit-role">
+                        <option value="Worship Leader / Singer">Worship Leader / Singer</option>
+                        <option value="Youth Leader / Member">Youth Leader / Member</option>
+                        <option value="Pastor / Church Leader">Pastor / Church Leader</option>
+                        <option value="Prayer Warrior / Intercessor">Prayer Warrior / Intercessor</option>
+                        <option value="Sunday School Teacher">Sunday School Teacher</option>
+                        <option value="Evangelist / Outreach">Evangelist / Outreach</option>
+                        <option value="Church Member">Church Member</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Church / Fellowship Name</label>
+                    <input type="text" id="edit-church" required>
+                </div>
+                <div class="form-group">
+                    <label>Bio / Personal Testimony</label>
+                    <textarea id="edit-bio" rows="3" placeholder="Tell us about your faith journey..."></textarea>
+                </div>
+                <button type="submit" class="btn-primary btn-block">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. EDIT POST MODAL -->
+    <div class="modal" id="edit-post-modal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('edit-post-modal')">&times;</button>
+            <h3 class="modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Post</h3>
+            <form onsubmit="handleSaveEditedPost(event)">
+                <input type="hidden" id="edit-post-id">
+                <div class="form-group">
+                    <label>Post Type</label>
+                    <select id="edit-post-type" required>
+                        <option value="prayer">🙏 Prayer Request</option>
+                        <option value="testimony">⭐ Testimony (Praise Report)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="edit-post-category" required>
+                        <option value="Healing & Health">💊 Healing & Health</option>
+                        <option value="Family & Peace">🕊️ Family & Peace</option>
+                        <option value="Guidance & Wisdom">🧭 Guidance & Wisdom</option>
+                        <option value="Financial Strength">🌱 Financial Strength</option>
+                        <option value="Youth & Education">🎓 Youth & Education</option>
+                        <option value="Answered Prayer">⭐ Answered Prayer (Testimony)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Message Content</label>
+                    <textarea id="edit-post-text" rows="5" required></textarea>
+                </div>
+                <button type="submit" class="btn-primary btn-block">Update Post</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. CREATE MINISTRY GROUP MODAL -->
+    <div class="modal" id="create-ministry-modal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('create-ministry-modal')">&times;</button>
+            <h3 class="modal-title"><i class="fa-solid fa-church"></i> Create Ministry Group</h3>
+            <form onsubmit="handleCreateMinistry(event)">
+                <div class="form-group">
+                    <label>Group Name</label>
+                    <input type="text" id="ministry-name-input" placeholder="e.g. Young Adults Revival Circle" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="ministry-cat-input">
+                        <option value="Youth & Young Adults">Youth & Young Adults</option>
+                        <option value="Worship & Creative Arts">Worship & Creative Arts</option>
+                        <option value="Prayer & Intercession">Prayer & Intercession</option>
+                        <option value="Community Outreach">Community Outreach</option>
+                        <option value="Bible Study">Bible Study</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mission & Purpose</label>
+                    <textarea id="ministry-bio-input" rows="3" placeholder="Describe the ministry mission..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary btn-block">Create Ministry Group</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. GROUP INFO & ADMIN MEMBERS MANAGEMENT MODAL -->
+    <div class="modal" id="group-info-modal">
+        <div class="modal-card" style="max-width: 580px;">
+            <button class="modal-close" onclick="closeModal('group-info-modal')">&times;</button>
+            <div class="group-info-header">
+                <div class="group-avatar-large">
+                    <i class="fa-solid fa-users-line"></i>
+                </div>
+                <h3 id="modal-group-name" style="font-family: var(--font-heading); font-size: 1.5rem; margin-top:0.5rem;">Group Name</h3>
+                <span id="modal-group-category" class="select-chip" style="display:inline-block; margin-top:0.4rem;">Category</span>
+                <p id="modal-group-bio" style="color:var(--text-secondary); font-size:0.9rem; margin-top:0.8rem; line-height:1.5;">Bio...</p>
+            </div>
+
+            <!-- ADMIN ONLY: Add Member Section -->
+            <div id="admin-add-member-section" class="admin-panel-card" style="display: none;">
+                <h4 style="color: var(--accent-gold); font-size: 0.95rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-crown"></i> Group Admin Authority: Add Believer
+                </h4>
+                <div style="display: flex; gap: 0.6rem;">
+                    <select id="admin-member-select" class="form-input-group" style="flex:1; padding:0.5rem;">
+                        <!-- Options populated via JS -->
+                    </select>
+                    <button class="btn-primary" onclick="handleAddGroupMemberFromModal()" style="padding:0.5rem 1rem;">
+                        <i class="fa-solid fa-user-plus"></i> Add
+                    </button>
+                </div>
+            </div>
+
+            <!-- Group Members List -->
+            <div style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h4 style="font-size: 1.05rem;"><i class="fa-solid fa-users"></i> Group Members (<span id="modal-group-members-count">0</span>)</h4>
+                </div>
+                <div id="modal-group-members-list" class="group-members-scroll-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. STORY VIEWER MODAL -->
+    <div class="modal" id="story-modal">
+        <div class="modal-card story-card">
+            <button class="modal-close" onclick="closeModal('story-modal')">&times;</button>
+            <div class="story-progress-bar"><div id="story-progress-fill"></div></div>
+            <div class="story-header">
+                <img id="story-user-avatar" src="" class="avatar-sm" alt="">
+                <div>
+                    <h4 id="story-user-name">User</h4>
+                    <span id="story-time-stamp" style="font-size:0.75rem; color:#ccc;">Just now</span>
+                </div>
+            </div>
+            <div class="story-body" id="story-body-content">
+                <p id="story-text">Story text</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. TERMS & CONDITIONS MODAL -->
+    <div class="modal" id="terms-modal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeModal('terms-modal')">&times;</button>
+            <h3 class="modal-title"><i class="fa-solid fa-file-shield"></i> Community Guidelines</h3>
+            <div class="terms-content">
+                <p><strong>1. Faith & Love:</strong> All believers are called to build one another up, edify the body of Christ, and treat every individual with grace, dignity, and honor.</p>
+                <p><strong>2. Respectful Prayers:</strong> Do not post sensitive personal data of others without their consent.</p>
+                <p><strong>3. Safe Environment:</strong> Zero tolerance for hate speech, harassment, spam, or hostile arguments.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. GOOGLE SIGN-IN MODAL -->
+    <div class="modal" id="google-auth-modal">
+        <div class="modal-card" style="max-width: 420px; background: #ffffff; color: #202124; border-radius: 20px; padding: 2.2rem 1.8rem; border: none; box-shadow: 0 25px 70px rgba(0,0,0,0.6);">
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 42px; height: 42px; margin-bottom: 0.8rem;" alt="Google">
+                <h3 style="font-size: 1.3rem; font-weight: 600; color: #202124; margin-bottom: 0.3rem;">Sign in with Google</h3>
+                <p style="font-size: 0.88rem; color: #5f6368;">to continue to <strong style="color:#0072ff;">FaithConnection</strong></p>
+            </div>
+
+            <div class="google-accounts-list" id="google-accounts-list" style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.2rem;">
+                <!-- Dynamically populated Google Accounts -->
+            </div>
+
+            <div id="google-custom-email-section" style="display: none; margin-bottom: 1.2rem; border-top: 1px solid #e0e0e0; padding-top: 1rem;">
+                <label style="font-size: 0.82rem; color: #5f6368; display: block; margin-bottom: 0.4rem; font-weight: 600;">Enter your Gmail address:</label>
+                <input type="email" id="google-custom-email" placeholder="yourname@gmail.com" style="width: 100%; padding: 0.7rem 0.9rem; border: 1px solid #dadce0; border-radius: 8px; font-size: 0.92rem; color: #202124; outline: none; margin-bottom: 0.6rem; background: #f8fafc;">
+                <input type="text" id="google-custom-name" placeholder="Your Full Name" style="width: 100%; padding: 0.7rem 0.9rem; border: 1px solid #dadce0; border-radius: 8px; font-size: 0.92rem; color: #202124; outline: none; margin-bottom: 0.8rem; background: #f8fafc;">
+                <button type="button" onclick="handleContinueWithCustomGoogleAccount()" style="width:100%; background: #1a73e8; color: #ffffff; border: none; font-weight: 600; padding: 0.75rem; border-radius: 8px; cursor: pointer; font-size:0.95rem; transition:0.2s;">Continue with this Gmail</button>
+            </div>
+
+            <button type="button" id="btn-toggle-custom-google" onclick="toggleCustomGoogleInput()" style="background: transparent; border: none; color: #1a73e8; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content:center; gap: 0.5rem; width: 100%; padding: 0.6rem 0;">
+                <i class="fa-solid fa-user-plus"></i> Use another Google / Gmail account
+            </button>
+
+            <div style="margin-top: 1.2rem; text-align: center;">
+                <button type="button" onclick="closeModal('google-auth-modal')" style="background: transparent; border: none; color: #5f6368; font-size: 0.88rem; font-weight: 500; cursor: pointer; padding:0.4rem 1rem;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="toast"></div>
+
+    <!-- Application JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
