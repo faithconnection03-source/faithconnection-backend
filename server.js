@@ -23,12 +23,62 @@ const dbConfig = process.env.DATABASE_URL || {
 
 const db = mysql.createPool(dbConfig);
 
-// Test Connection
+// Test Connection & Auto Create Tables
 db.getConnection((err, connection) => {
     if (err) {
         console.error('❌ Database Connection Failed:', err.message);
     } else {
         console.log('✅ Connected to Database Successfully!');
+        
+        // Auto-create database tables
+        const queries = [
+            `CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(255) PRIMARY KEY,
+                username VARCHAR(255),
+                name VARCHAR(255),
+                email VARCHAR(255),
+                role VARCHAR(50),
+                church VARCHAR(255),
+                avatar TEXT,
+                bio TEXT
+            );`,
+            `CREATE TABLE IF NOT EXISTS posts (
+                id VARCHAR(255) PRIMARY KEY,
+                user_id VARCHAR(255),
+                type VARCHAR(50),
+                category VARCHAR(100),
+                text TEXT,
+                image LONGTEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );`,
+            `CREATE TABLE IF NOT EXISTS ministry_groups (
+                id VARCHAR(255) PRIMARY KEY,
+                name VARCHAR(255),
+                leader_id VARCHAR(255),
+                FOREIGN KEY (leader_id) REFERENCES users(id) ON DELETE CASCADE
+            );`,
+            `CREATE TABLE IF NOT EXISTS group_members (
+                group_id VARCHAR(255),
+                user_id VARCHAR(255),
+                PRIMARY KEY (group_id, user_id)
+            );`,
+            `CREATE TABLE IF NOT EXISTS group_messages (
+                id VARCHAR(255) PRIMARY KEY,
+                group_id VARCHAR(255),
+                user_id VARCHAR(255),
+                message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );`
+        ];
+
+        queries.forEach((q) => {
+            connection.query(q, (qErr) => {
+                if (qErr) console.error('❌ Table Creation Error:', qErr.message);
+            });
+        });
+
+        console.log('✅ Database tables initialized!');
         connection.release();
     }
 });
