@@ -3,7 +3,7 @@ $host = "mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com";
 $port = 14165;
 $dbname = "defaultdb";
 $username = "avnadmin";
-$password = "YOUR_AIVEN_PASSWORD"; // Replace with your actual Aiven password
+$password = "AVNS_UfdMBLZ_aN_SapdQQk_"; // Replace with your actual Aiven password
 
 // Enable SSL parameters required by Aiven
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
