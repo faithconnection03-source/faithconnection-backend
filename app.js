@@ -25,7 +25,7 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // --- Live Backend API Base URL ---
-const API_BASE_URL = "https://faithconnection-backend.onrender.com/api.php"; // Render backend URL
+const API_BASE_URL = "https://faithconnection.free.je/api.php"; // Render backend URL
 
 // --- Dynamic State Variables (Fully driven by database responses) ---
 let currentUserProfile = null;
