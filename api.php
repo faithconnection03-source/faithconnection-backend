@@ -3,6 +3,7 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json; charset=UTF-8");
 
+// --- Aiven MySQL Database Configuration ---
 $host = "mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com";
 $port = 14165;
 $dbname = "defaultdb";
@@ -17,6 +18,24 @@ try {
     mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
     mysqli_real_connect($conn, $host, $username, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
     mysqli_set_charset($conn, "utf8mb4");
+
+    // Automatically Create Tables if they don't exist
+    $conn->query("CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS posts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )");
+
 } catch (Exception $e) {
     echo json_encode([
         "success" => false, 
@@ -78,6 +97,46 @@ switch ($action) {
             }
         } else {
             echo json_encode(["success" => false, "message" => "Incomplete data"]);
+        }
+        break;
+
+    case 'google_login':
+        if (!empty($data['email']) && !empty($data['name'])) {
+            $email = $conn->real_escape_string($data['email']);
+            $name = $conn->real_escape_string($data['name']);
+
+            $res = $conn->query("SELECT * FROM users WHERE email='$email'");
+            if ($res->num_rows > 0) {
+                $user = $res->fetch_assoc();
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Google Login successful",
+                    "user" => [
+                        "id" => $user['id'],
+                        "name" => $user['name'],
+                        "email" => $user['email']
+                    ]
+                ]);
+            } else {
+                $dummy_password = password_hash(uniqid(), PASSWORD_BCRYPT);
+                $sql = "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$dummy_password')";
+                if ($conn->query($sql)) {
+                    $new_user_id = $conn->insert_id;
+                    echo json_encode([
+                        "success" => true,
+                        "message" => "Google Account registered & logged in successfully",
+                        "user" => [
+                            "id" => $new_user_id,
+                            "name" => $name,
+                            "email" => $email
+                        ]
+                    ]);
+                } else {
+                    echo json_encode(["success" => false, "message" => "Error registering Google user in database"]);
+                }
+            }
+        } else {
+            echo json_encode(["success" => false, "message" => "Incomplete Google user data"]);
         }
         break;
 
