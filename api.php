@@ -8,7 +8,7 @@ $host = "mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com";
 $port = 14165;
 $dbname = "defaultdb";
 $username = "avnadmin";
-$password = "AVNS_UfdMBLZ_aN_SapdQQk_"; 
+$password = "AVNS_gUyJ-wb3_WArX1cBgxU"; 
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
