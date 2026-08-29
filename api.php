@@ -43,7 +43,6 @@ try {
     ]);
     exit();
 }
-
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -132,9 +131,46 @@ switch ($action) {
                         ]
                     ]);
                 } else {
-                    echo json_encode(["success" => false, "message" => "Error registering Google user in database"]);
+                    echo json_encode(["success" => false, "message" => "SQL Error: " . $conn->error]);
+               case 'google_login':
+        if (!empty($data['email']) && !empty($data['name'])) {
+            $email = $conn->real_escape_string($data['email']);
+            $name = $conn->real_escape_string($data['name']);
+
+            $res = $conn->query("SELECT * FROM users WHERE email='$email'");
+            if ($res && $res->num_rows > 0) {
+                $user = $res->fetch_assoc();
+                echo json_encode([
+                    "success" => true,
+                    "message" => "Google Login successful",
+                    "user" => [
+                        "id" => $user['id'],
+                        "name" => $user['name'],
+                        "email" => $user['email']
+                    ]
+                ]);
+            } else {
+                $dummy_password = password_hash(uniqid(), PASSWORD_BCRYPT);
+                $sql = "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$dummy_password')";
+                if ($conn->query($sql)) {
+                    $new_user_id = $conn->insert_id;
+                    echo json_encode([
+                        "success" => true,
+                        "message" => "Google Account registered & logged in successfully",
+                        "user" => [
+                            "id" => $new_user_id,
+                            "name" => $name,
+                            "email" => $email
+                        ]
+                    ]);
+                } else {
+                    echo json_encode(["success" => false, "message" => "SQL Error: " . $conn->error]);
                 }
             }
+        } else {
+            echo json_encode(["success" => false, "message" => "Incomplete Google user data"]);
+        }
+        break;
         } else {
             echo json_encode(["success" => false, "message" => "Incomplete Google user data"]);
         }
