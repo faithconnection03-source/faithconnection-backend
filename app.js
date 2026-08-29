@@ -1,10 +1,11 @@
 /* ==========================================================================
-   FAITHCONNECTION - FIREBASE & MYSQL INTEGRATED CORE
+   FAITHCONNECTION - FIREBASE & MYSQL INTEGRATED CORE (CLEANED)
    ========================================================================= */
 
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/analytics.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/auth.js";
 
 // Your web app's Firebase configuration (from your Firebase Console setup)
 const firebaseConfig = {
@@ -20,9 +21,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
-// --- Persistent State Variables (Dynamic from Backend / Firebase) ---
-let usersDB = {};
+// --- Live Backend API Base URL ---
+const API_BASE_URL = "https://faithconnection.great-site.net/api.php";
+
+// --- Dynamic State Variables (Fully driven by database responses) ---
+let currentUserProfile = null;
 let postsDB = [];
 let ministriesDB = [];
 let chatsDB = {};
@@ -59,7 +65,7 @@ function showToast(message) {
 }
 
 // ==========================================================================
-// AUTHENTICATION & API WORKFLOW (MYSQL + FIREBASE READY)
+// AUTHENTICATION & API WORKFLOW (MYSQL + FIREBASE)
 // ==========================================================================
 function switchAuthTab(tab) {
     clearAuthAlert();
@@ -94,13 +100,55 @@ function clearAuthAlert() {
     if(alertBox) alertBox.style.display = 'none';
 }
 
+// --- Google Sign In Handler ---
+window.handleGoogleSignIn = function() {
+    clearAuthAlert();
+    
+    signInWithPopup(auth, googleProvider)
+    .then((result) => {
+        const user = result.user;
+        const googleUserData = {
+            name: user.displayName,
+            email: user.email,
+            firebase_uid: user.uid,
+            avatar: user.photoURL || ''
+        };
+
+        fetch(`${API_BASE_URL}?action=google_login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleUserData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                loggedInUserId = data.user.id;
+                currentUserProfile = data.user;
+                syncStorage();
+                initAppSession();
+                showToast(`Welcome, ${user.displayName}!`);
+            } else {
+                showAuthAlert(data.message || 'Google authentication failed with backend.');
+            }
+        })
+        .catch(err => {
+            console.error('Backend Sync Error:', err);
+            showAuthAlert('Server connection failed during Google Login.');
+        });
+
+    }).catch((error) => {
+        console.error('Firebase Google Auth Error:', error);
+        showAuthAlert(error.message || 'Google sign-in was cancelled or failed.');
+    });
+};
+
 function handleLogin(e) {
     e.preventDefault();
     clearAuthAlert();
     const email = document.getElementById('login-identifier').value.trim();
     const password = document.getElementById('login-password').value;
 
-    fetch('api.php?action=login', {
+    fetch(`${API_BASE_URL}?action=login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -109,7 +157,7 @@ function handleLogin(e) {
     .then(data => {
         if(data.success) {
             loggedInUserId = data.user.id;
-            usersDB[loggedInUserId] = data.user;
+            currentUserProfile = data.user;
             syncStorage();
             initAppSession();
             showToast('Login successful! Welcome to FaithConnection.');
@@ -131,7 +179,7 @@ function handleRegister(e) {
     const email = document.getElementById('reg-email').value.trim().toLowerCase();
     const password = document.getElementById('reg-password').value;
 
-    fetch('api.php?action=register', {
+    fetch(`${API_BASE_URL}?action=register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
@@ -153,6 +201,7 @@ function handleRegister(e) {
 
 function handleLogout() {
     loggedInUserId = null;
+    currentUserProfile = null;
     localStorage.removeItem('fc_logged_user_v6');
     document.getElementById('app-wrapper').classList.remove('logged-in');
     document.getElementById('auth-screen').style.display = 'flex';
@@ -165,11 +214,25 @@ function initAppSession() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-wrapper').classList.add('logged-in');
 
+    fetchUserData();
     fetchPostsFromDatabase();
+    fetchMinistriesFromDatabase();
+}
+
+function fetchUserData() {
+    if (!loggedInUserId) return;
+    fetch(`${API_BASE_URL}?action=get_user&id=${loggedInUserId}`)
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            currentUserProfile = data.user;
+        }
+    })
+    .catch(err => console.error('Error fetching user profile:', err));
 }
 
 function fetchPostsFromDatabase() {
-    fetch('api.php?action=get_posts')
+    fetch(`${API_BASE_URL}?action=get_posts`)
     .then(res => res.json())
     .then(data => {
         if(data.success) {
@@ -178,6 +241,17 @@ function fetchPostsFromDatabase() {
         }
     })
     .catch(err => console.error('Error fetching posts:', err));
+}
+
+function fetchMinistriesFromDatabase() {
+    fetch(`${API_BASE_URL}?action=get_ministries`)
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            ministriesDB = data.ministries || [];
+        }
+    })
+    .catch(err => console.error('Error fetching ministries:', err));
 }
 
 function handleCreatePost() {
@@ -189,15 +263,16 @@ function handleCreatePost() {
         return;
     }
 
-    fetch('api.php?action=create_post', {
+    fetch(`${API_BASE_URL}?action=create_post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: loggedInUserId, content: text })
+        body: JSON.stringify({ user_id: loggedInUserId, content: text, image: selectedPostImageBase64 })
     })
     .then(res => res.json())
     .then(data => {
         if(data.success) {
             if(textElem) textElem.value = '';
+            selectedPostImageBase64 = '';
             fetchPostsFromDatabase();
             showToast('Post published and saved to MySQL database!');
         } else {
@@ -228,31 +303,37 @@ function renderFeed(filterType = 'all') {
         card.innerHTML = `
             <div class="post-header">
                 <div class="author-meta">
-                    <h4>${post.user_name || 'Believer'}</h4>
-                    <span>${post.created_at || 'Just now'}</span>
+                    <h4>${escapeHtml(post.user_name)}</h4>
+                    <span>${escapeHtml(post.created_at)}</span>
                 </div>
             </div>
             <div class="post-body">
-                <p class="post-text">${post.content}</p>
+                <p class="post-text">${escapeHtml(post.content)}</p>
             </div>
         `;
         container.appendChild(card);
     });
 }
 
+// Utility to prevent injection when rendering text dynamically from DB
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 // Navigation & Theme Utilities
-function navigateTo(viewId) {
+window.navigateTo = function(viewId) {
     document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
     const targetView = document.getElementById(`view-${viewId}`);
     if (targetView) targetView.classList.add('active');
-}
+};
 
-function toggleTheme() {
+window.toggleTheme = function() {
     const current = document.documentElement.getAttribute('data-theme');
     const next = current === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('fc_theme_v6', next);
-}
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('fc_theme_v6') || 'dark';
