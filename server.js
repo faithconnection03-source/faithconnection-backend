@@ -10,15 +10,15 @@ app.use(express.json({ limit: '50mb' }));
 
 // --- MySQL Connection Pool (Aiven Cloud & SSL Support Included) ---
 const dbConfig = process.env.DATABASE_URL || {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'FAITHjejus@9839', 
-    database: process.env.DB_NAME || 'faithconnection_db',
-    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
+    host: process.env.DB_HOST || 'mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com',
+    user: process.env.DB_USER || 'avnadmin',
+    password: process.env.DB_PASSWORD || 'AVNS_UfdMBLZ_aN_SapdQQk_', 
+    database: process.env.DB_NAME || 'defaultdb',
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 14165,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false // Aiven MySQL SSL Fix
+    ssl: { rejectUnauthorized: false } // Aiven MySQL SSL Fix
 };
 
 const db = mysql.createPool(dbConfig);
