@@ -18,26 +18,19 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
-// --- Aiven MySQL Database Configuration ---
-$uri = "mysql://avnadmin:AVNS_gUyJ-wb3_WArX1cBgxU@mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com:14165/defaultdb?ssl-mode=REQUIRED";
-$fields = parse_url($uri);
-
-$host = $fields["host"];
-$port = $fields["port"];
-$dbname = ltrim($fields["path"], '/');
-$username = $fields["user"];
-$password = $fields["pass"];
+// --- InfinityFree MySQL Database Configuration ---
+$host = "sql210.infinityfree.com";
+$username = "if0_42767881";
+$password = "RdzqKOLVL2SM";
+$dbname = "if0_42767881_faithconnectiondb";
+$port = 3306;
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 try {
-    $conn = mysqli_init();
-    // SSL certificate bypass taaki InfinityFree se Aiven par connection timeout na ho
-    mysqli_ssl_set($conn, NULL, NULL, NULL, NULL, NULL);
-    mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
-    
-    mysqli_real_connect($conn, $host, $username, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
-    mysqli_set_charset($conn, "utf8mb4");
+    // InfinityFree local connection (No SSL required)
+    $conn = new mysqli($host, $username, $password, $dbname, $port);
+    $conn->set_charset("utf8mb4");
 
     // Automatically Create Tables if they don't exist
     $conn->query("CREATE TABLE IF NOT EXISTS users (
