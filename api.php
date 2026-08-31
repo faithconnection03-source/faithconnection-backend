@@ -1,12 +1,11 @@
 <?php
-// Allow from any origin
+// --- CORS Headers ---
 if (isset($_SERVER['HTTP_ORIGIN'])) {
     header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Max-Age: 86400");
 }
 
-// Access-Control headers are received during OPTIONS requests
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
         header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -18,19 +17,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
 // --- Aiven MySQL Database Configuration ---
-$host = "mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com";
-$port = 14165;
-$dbname = "defaultdb";
-$username = "avnadmin";
-$password = "AVNS_gUyJ-wb3_WArX1cBgxU"; 
+$uri = "mysql://avnadmin:AVNS_gUyJ-wb3_WArX1cBgxU@mysql-ce96da-faithconnection03-fe6b.f.aivencloud.com:14165/defaultdb?ssl-mode=REQUIRED";
+$fields = parse_url($uri);
+
+$host = $fields["host"];
+$port = $fields["port"];
+$dbname = ltrim($fields["path"], '/');
+$username = $fields["user"];
+$password = $fields["pass"];
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 try {
     $conn = mysqli_init();
+    // SSL certificate bypass taaki InfinityFree se Aiven par connection timeout na ho
     mysqli_ssl_set($conn, NULL, NULL, NULL, NULL, NULL);
     mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+    
     mysqli_real_connect($conn, $host, $username, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
     mysqli_set_charset($conn, "utf8mb4");
 
