@@ -1,27 +1,22 @@
-FaithConnection functional fix
-===============================
+FaithConnection v2 authentication fix
+=====================================
 
-Configuration was intentionally preserved:
-- Firebase configuration values were not changed.
-- API_BASE_URL remains https://faithconnection.free.je/api.php.
-- Existing database connection values in api.php/config.php were not changed in the source configuration.
-- Existing theme variables/design were preserved; style.css only adds helper rules for newly activated UI.
+ROOT CAUSE FOUND:
+The previous functional build sent email/registration requests to
+https://faithconnection.free.je/api.php. That hostname is currently not resolving,
+which produces the browser error "Failed to fetch" on Netlify.
 
-Main fixes:
-- Profile navigation + profile rendering/editing.
-- Followers/following + follow/unfollow.
-- Post create/edit/delete/share/like/pray/save/comments.
-- Ministries/groups create/join/leave/admin-add-member.
-- WhatsApp-style group chat + photo messages.
-- Direct 1-to-1 chat + photo messages + quick prayer + polling.
-- Active believers search + profile/message/follow.
-- Settings navigation + theme persistence.
-- Stories and daily verse interactions.
-- Global search.
-- Backend API now creates/migrates the missing social tables on the existing MySQL database.
+FIX:
+- Email/password registration now uses the existing Firebase Authentication config.
+- Email/password login now uses Firebase Authentication.
+- Username/mobile login resolves the user's email from the existing Firestore users collection.
+- New registration stores the complete profile (name, username, email, phone, role, church, bio, avatar) in Firestore.
+- Firebase profile loading is used before the optional MySQL API.
+- App boot no longer depends on the PHP API being online.
+- Existing Firebase configuration is unchanged.
+- Existing theme/design and index.html are unchanged.
+- The MySQL API remains available for the social/community data layer when its backend is online.
 
-Deployment:
-1. Replace the live app.js, api.php and style.css with these versions.
-2. Do not replace config.php unless you intentionally want to change credentials.
-3. Keep index.html and the remaining project files as they are.
-4. If your database user cannot CREATE/ALTER tables, run the database setup with an account that has those permissions first.
+IMPORTANT:
+Firebase Email/Password Authentication must be enabled in Firebase Console > Authentication > Sign-in method.
+The password must be at least 6 characters because Firebase Authentication enforces that minimum.

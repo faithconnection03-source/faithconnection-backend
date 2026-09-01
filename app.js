@@ -5,8 +5,12 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {
+    getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 /* --- Existing Firebase configuration: unchanged --- */
 const firebaseConfig = {
@@ -21,6 +25,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 /* --- Existing API configuration: unchanged --- */
@@ -155,19 +160,55 @@ function switchAuthTab(tab) {
     }
 }
 
+async function findFirebaseUserByIdentifier(identifier) {
+    const value = String(identifier || "").trim().toLowerCase();
+    if (!value) throw new Error("Enter your username, email or mobile number.");
+
+    // Email can be sent directly to Firebase Authentication.
+    if (value.includes("@")) return value;
+
+    // Username/mobile are resolved from the existing Firestore profile.
+    for (const field of ["username", "phone"]) {
+        const snap = await getDocs(query(collection(db, "users"), where(field, "==", value)));
+        if (!snap.empty) {
+            const profile = snap.docs[0].data();
+            if (profile.email) return profile.email;
+        }
+    }
+    throw new Error("User not found. Please check your username/email/mobile.");
+}
+
 async function handleLogin(e) {
     e.preventDefault();
     clearAuthAlert();
     try {
         const identifier = $("login-identifier").value.trim();
         const password = $("login-password").value;
-        const result = await api("login", "POST", { identifier, password });
-        setUser(result.user);
+        const email = await findFirebaseUserByIdentifier(identifier);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        const uid = credential.user.uid;
+
+        let profileSnap = await getDoc(doc(db, "users", uid));
+        if (profileSnap.exists()) {
+            setUser({ id: uid, ...profileSnap.data() });
+        } else {
+            const profile = {
+                id: uid, name: credential.user.displayName || email.split("@")[0],
+                email, avatar: credential.user.photoURL || "", username: email.split("@")[0]
+            };
+            await setDoc(doc(db, "users", uid), profile, { merge: true });
+            setUser(profile);
+        }
+
         await initAppSession();
         showToast("Login successful! Welcome to FaithConnection.");
     } catch (err) {
-        console.error(err);
-        showAuthAlert(err.message || "Login failed.");
+        console.error("Login error:", err);
+        let message = err?.message || "Login failed.";
+        if (err?.code === "auth/invalid-credential" || err?.code === "auth/wrong-password") message = "Invalid email/username or password.";
+        if (err?.code === "auth/user-not-found") message = "Account not found.";
+        if (err?.code === "auth/too-many-requests") message = "Too many attempts. Please wait a moment and try again.";
+        showAuthAlert(message);
     }
 }
 
@@ -175,22 +216,48 @@ async function handleRegister(e) {
     e.preventDefault();
     clearAuthAlert();
     try {
-        const result = await api("register", "POST", {
-            name: $("reg-name").value.trim(),
-            username: $("reg-username")?.value.trim() || "",
-            email: $("reg-email").value.trim().toLowerCase(),
-            phone: $("reg-phone")?.value.trim() || "",
-            role: $("reg-role")?.value || "Church Member",
-            church: $("reg-church")?.value.trim() || "Fellowship Community Church",
-            password: $("reg-password").value
-        });
-        showAuthAlert(result.message || "Registration successful.", false);
+        const name = $("reg-name").value.trim();
+        const username = $("reg-username")?.value.trim().toLowerCase() || "";
+        const email = $("reg-email").value.trim().toLowerCase();
+        const phone = $("reg-phone")?.value.trim() || "";
+        const role = $("reg-role")?.value || "Church Member";
+        const church = $("reg-church")?.value.trim() || "Fellowship Community Church";
+        const password = $("reg-password").value;
+
+        if (!name || !email || !password) throw new Error("Please fill all required fields.");
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+
+        // Check username/mobile before creating the Firebase account.
+        if (username) {
+            const existingUsername = await getDocs(query(collection(db, "users"), where("username", "==", username)));
+            if (!existingUsername.empty) throw new Error("Username is already taken.");
+        }
+        if (phone) {
+            const existingPhone = await getDocs(query(collection(db, "users"), where("phone", "==", phone)));
+            if (!existingPhone.empty) throw new Error("Mobile number is already registered.");
+        }
+
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        const profile = {
+            id: credential.user.uid, name, username: username || email.split("@")[0],
+            email, phone, role, church, avatar: "", bio: "",
+            createdAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, "users", credential.user.uid), profile, { merge: true });
+
+        // Keep the new account signed out so the existing login flow stays unchanged.
+        await signOut(auth);
+        showAuthAlert("Account created successfully. You can now sign in.", false);
         switchAuthTab("login");
-        $("login-identifier").value = result.user?.email || $("reg-email").value.trim();
+        $("login-identifier").value = email;
         $("login-password").value = "";
     } catch (err) {
-        console.error(err);
-        showAuthAlert(err.message || "Registration failed.");
+        console.error("Registration error:", err);
+        let message = err?.message || "Registration failed.";
+        if (err?.code === "auth/email-already-in-use") message = "This email is already registered. Please sign in instead.";
+        if (err?.code === "auth/invalid-email") message = "Please enter a valid email address.";
+        if (err?.code === "auth/weak-password") message = "Password must be at least 6 characters.";
+        showAuthAlert(message);
     }
 }
 
@@ -256,26 +323,44 @@ async function initAppSession() {
     $("auth-screen").style.display = "none";
     $("app-wrapper").classList.add("logged-in");
 
-    try {
-        await Promise.all([
-            fetchUserData(),
-            fetchUsers(),
-            fetchPostsFromDatabase(),
-            fetchMinistriesFromDatabase(),
-            fetchStories()
-        ]);
-        renderAll();
-    } catch (err) {
-        console.error("Session load:", err);
-        showToast("Some community data could not be loaded.", true);
+    // Authentication is Firebase-backed, so the app must open even if the
+    // optional MySQL API is temporarily unavailable. Each data section is
+    // loaded independently instead of one failed request blocking the whole UI.
+    await fetchUserData();
+    const jobs = [
+        [fetchUsers, "believers"],
+        [fetchPostsFromDatabase, "posts"],
+        [fetchMinistriesFromDatabase, "groups"],
+        [fetchStories, "stories"]
+    ];
+    for (const [job, label] of jobs) {
+        try { await job(); }
+        catch (err) { console.warn(`FaithConnection ${label} API unavailable:`, err); }
     }
+    renderAll();
 }
 
 async function fetchUserData() {
     if (!loggedInUserId) return;
-    const r = await api("get_user", "GET", null, { id: loggedInUserId, viewer_id: loggedInUserId });
-    currentUserProfile = r.user;
-    updateCurrentUserChrome();
+    // First read the Firebase profile; this works on Netlify without PHP.
+    try {
+        const snap = await getDoc(doc(db, "users", String(loggedInUserId)));
+        if (snap.exists()) {
+            currentUserProfile = { id: loggedInUserId, ...snap.data() };
+            updateCurrentUserChrome();
+            return;
+        }
+    } catch (firebaseErr) {
+        console.warn("Firebase profile read failed:", firebaseErr);
+    }
+    // If the MySQL backend is available, keep compatibility with it.
+    try {
+        const r = await api("get_user", "GET", null, { id: loggedInUserId, viewer_id: loggedInUserId });
+        currentUserProfile = r.user;
+        updateCurrentUserChrome();
+    } catch (apiErr) {
+        console.warn("API profile read failed:", apiErr);
+    }
 }
 
 async function fetchUsers() {
@@ -1048,15 +1133,26 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const savedTheme=localStorage.getItem("fc_theme_v6")||"dark";
     document.documentElement.setAttribute("data-theme",savedTheme);
     renderScriptures();
-    if(loggedInUserId){
-        try{await initAppSession();}
-        catch(e){
-            console.error(e);
+
+    // Firebase is the source of truth for authentication. This prevents an
+    // old MySQL/localStorage id from forcing the app into a broken session.
+    try {
+        if (auth.currentUser) {
+            const uid = auth.currentUser.uid;
+            loggedInUserId = uid;
+            syncStorage();
+            await fetchUserData();
+            await initAppSession();
+        } else {
+            loggedInUserId = null;
+            localStorage.removeItem("fc_logged_user_v6");
             $("auth-screen").style.display="flex";
             $("app-wrapper").classList.remove("logged-in");
-            localStorage.removeItem("fc_logged_user_v6");
         }
-    }else{
+    } catch(e) {
+        console.error("Boot error:", e);
+        loggedInUserId = null;
+        localStorage.removeItem("fc_logged_user_v6");
         $("auth-screen").style.display="flex";
         $("app-wrapper").classList.remove("logged-in");
     }
