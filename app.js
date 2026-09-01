@@ -8,7 +8,7 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase
 import {
     getAuth, GoogleAuthProvider, signInWithPopup,
     createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    signOut, onAuthStateChanged
+    signOut
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
     getFirestore, doc, setDoc, getDoc,
@@ -32,6 +32,9 @@ const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
+
+// --- Live Backend API Base URL (kept for reference, no longer used) ---
+const API_BASE_URL = "https://faithconnection.free.je/api.php"; // Render backend URL
 
 // --- Dynamic State Variables (Fully driven by database responses) ---
 let currentUserProfile = null;
@@ -132,6 +135,7 @@ window.handleGoogleSignIn = function() {
         }
 
         loggedInUserId = user.uid;
+        currentUserProfile = { id: user.uid, name: user.displayName, email: user.email, avatar: user.photoURL };
         syncStorage();
         initAppSession();
         showToast(`Welcome, ${user.displayName}!`);
@@ -255,7 +259,7 @@ function handleCreatePost() {
         if(textElem) textElem.value = '';
         selectedPostImageBase64 = '';
         fetchPostsFromDatabase();
-        showToast('Post published and saved to Firestore!');
+        showToast('Post published and saved to database!');
     })
     .catch(err => {
         console.error('Post creation error:', err);
@@ -319,16 +323,10 @@ window.toggleTheme = function() {
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('fc_theme_v6') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
-});
 
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        loggedInUserId = user.uid;
-        syncStorage();
+    if (loggedInUserId) {
         initAppSession();
     } else {
-        loggedInUserId = null;
-        syncStorage();
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('app-wrapper').classList.remove('logged-in');
     }
