@@ -3,18 +3,26 @@
    ========================================================================= */
 
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/analytics.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase/auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+import {
+    getAuth, GoogleAuthProvider, signInWithPopup,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import {
+    getFirestore, doc, setDoc, getDoc,
+    collection, addDoc, getDocs, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Your web app's Firebase configuration (from your Firebase Console setup)
 const firebaseConfig = {
-    apiKey: "AIzaSyB8VeP5WBSilDyZwq8hSLdYCrmBiuLIPI",
+    apiKey: "AIzaSyB8VePl5WBSilDyZwq8hSLdYCrmBiuLIPI",
     authDomain: "faithconnection-af4f2.firebaseapp.com",
     projectId: "faithconnection-af4f2",
-    storageBucket: "faithconnection-af4f2.appspot.com",
+    storageBucket: "faithconnection-af4f2.firebasestorage.app",
     messagingSenderId: "135734412322",
-    appId: "1:135734412322:web:11b16e5f8130b98a4367b",
+    appId: "1:135734412322:web:11b16fe5f8130b98a4367b",
     measurementId: "G-1T1KQPCN4R"
 };
 
@@ -22,10 +30,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
-
-// --- Live Backend API Base URL ---
-const API_BASE_URL = "https://faithconnection.free.je/api.php"; // Render backend URL
 
 // --- Dynamic State Variables (Fully driven by database responses) ---
 let currentUserProfile = null;
@@ -101,41 +107,34 @@ function clearAuthAlert() {
 }
 
 // --- Google Sign In Handler ---
+window.switchAuthTab = switchAuthTab;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.handleLogout = handleLogout;
+window.handleCreatePost = handleCreatePost;
+
 window.handleGoogleSignIn = function() {
     clearAuthAlert();
-    
+
     signInWithPopup(auth, googleProvider)
-    .then((result) => {
+    .then(async (result) => {
         const user = result.user;
-        const googleUserData = {
-            name: user.displayName,
-            email: user.email,
-            firebase_uid: user.uid,
-            avatar: user.photoURL || ''
-        };
+        const userRef = doc(db, "users", user.uid);
+        const existing = await getDoc(userRef);
 
-        fetch(`${API_BASE_URL}?action=google_login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(googleUserData)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                loggedInUserId = data.user.id;
-                currentUserProfile = data.user;
-                syncStorage();
-                initAppSession();
-                showToast(`Welcome, ${user.displayName}!`);
-            } else {
-                showAuthAlert(data.message || 'Google authentication failed with backend.');
-            }
-        })
-        .catch(err => {
-            console.error('Backend Sync Error:', err);
-            showAuthAlert('Server connection failed during Google Login.');
-        });
+        if (!existing.exists()) {
+            await setDoc(userRef, {
+                name: user.displayName || '',
+                email: user.email || '',
+                avatar: user.photoURL || '',
+                createdAt: new Date().toISOString()
+            });
+        }
 
+        loggedInUserId = user.uid;
+        syncStorage();
+        initAppSession();
+        showToast(`Welcome, ${user.displayName}!`);
     }).catch((error) => {
         console.error('Firebase Google Auth Error:', error);
         showAuthAlert(error.message || 'Google sign-in was cancelled or failed.');
@@ -148,26 +147,16 @@ function handleLogin(e) {
     const email = document.getElementById('login-identifier').value.trim();
     const password = document.getElementById('login-password').value;
 
-    fetch(`${API_BASE_URL}?action=login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            loggedInUserId = data.user.id;
-            currentUserProfile = data.user;
-            syncStorage();
-            initAppSession();
-            showToast('Login successful! Welcome to FaithConnection.');
-        } else {
-            showAuthAlert(data.message || 'Invalid credentials.');
-        }
+    signInWithEmailAndPassword(auth, email, password)
+    .then((cred) => {
+        loggedInUserId = cred.user.uid;
+        syncStorage();
+        initAppSession();
+        showToast('Login successful! Welcome to FaithConnection.');
     })
     .catch(err => {
         console.error('Login Error:', err);
-        showAuthAlert('Server connection failed.');
+        showAuthAlert(err.message || 'Invalid credentials.');
     });
 }
 
@@ -179,27 +168,25 @@ function handleRegister(e) {
     const email = document.getElementById('reg-email').value.trim().toLowerCase();
     const password = document.getElementById('reg-password').value;
 
-    fetch(`${API_BASE_URL}?action=register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.success) {
-            showToast('Registration successful! Please login.');
-            switchAuthTab('login');
-        } else {
-            showAuthAlert(data.message || 'Registration failed.');
-        }
+    createUserWithEmailAndPassword(auth, email, password)
+    .then(async (cred) => {
+        await setDoc(doc(db, "users", cred.user.uid), {
+            name,
+            email,
+            avatar: '',
+            createdAt: new Date().toISOString()
+        });
+        showToast('Registration successful! Please login.');
+        switchAuthTab('login');
     })
     .catch(err => {
-        console.error('Database Error:', err);
-        showAuthAlert('Server connection error.');
+        console.error('Registration Error:', err);
+        showAuthAlert(err.message || 'Registration failed.');
     });
 }
 
 function handleLogout() {
+    signOut(auth).catch(err => console.error('Sign out error:', err));
     loggedInUserId = null;
     currentUserProfile = null;
     localStorage.removeItem('fc_logged_user_v6');
@@ -221,35 +208,29 @@ function initAppSession() {
 
 function fetchUserData() {
     if (!loggedInUserId) return;
-    fetch(`${API_BASE_URL}?action=get_user&id=${loggedInUserId}`)
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            currentUserProfile = data.user;
+    getDoc(doc(db, "users", loggedInUserId))
+    .then(snap => {
+        if (snap.exists()) {
+            currentUserProfile = { id: loggedInUserId, ...snap.data() };
         }
     })
     .catch(err => console.error('Error fetching user profile:', err));
 }
 
 function fetchPostsFromDatabase() {
-    fetch(`${API_BASE_URL}?action=get_posts`)
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            postsDB = data.posts || [];
-            renderFeed(currentFeedFilter);
-        }
+    const postsQuery = query(collection(db, "posts"), orderBy("created_at", "desc"));
+    getDocs(postsQuery)
+    .then(snap => {
+        postsDB = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderFeed(currentFeedFilter);
     })
     .catch(err => console.error('Error fetching posts:', err));
 }
 
 function fetchMinistriesFromDatabase() {
-    fetch(`${API_BASE_URL}?action=get_ministries`)
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            ministriesDB = data.ministries || [];
-        }
+    getDocs(collection(db, "ministries"))
+    .then(snap => {
+        ministriesDB = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     })
     .catch(err => console.error('Error fetching ministries:', err));
 }
@@ -263,23 +244,23 @@ function handleCreatePost() {
         return;
     }
 
-    fetch(`${API_BASE_URL}?action=create_post`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: loggedInUserId, content: text, image: selectedPostImageBase64 })
+    addDoc(collection(db, "posts"), {
+        user_id: loggedInUserId,
+        user_name: currentUserProfile ? currentUserProfile.name : 'Believer',
+        content: text,
+        image: selectedPostImageBase64,
+        created_at: new Date().toISOString()
     })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            if(textElem) textElem.value = '';
-            selectedPostImageBase64 = '';
-            fetchPostsFromDatabase();
-            showToast('Post published and saved to MySQL database!');
-        } else {
-            alert(data.message || 'Error creating post.');
-        }
+    .then(() => {
+        if(textElem) textElem.value = '';
+        selectedPostImageBase64 = '';
+        fetchPostsFromDatabase();
+        showToast('Post published and saved to Firestore!');
     })
-    .catch(err => console.error('Post creation error:', err));
+    .catch(err => {
+        console.error('Post creation error:', err);
+        alert('Error creating post.');
+    });
 }
 
 function renderFeed(filterType = 'all') {
@@ -338,10 +319,16 @@ window.toggleTheme = function() {
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('fc_theme_v6') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
+});
 
-    if (loggedInUserId) {
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        loggedInUserId = user.uid;
+        syncStorage();
         initAppSession();
     } else {
+        loggedInUserId = null;
+        syncStorage();
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('app-wrapper').classList.remove('logged-in');
     }
